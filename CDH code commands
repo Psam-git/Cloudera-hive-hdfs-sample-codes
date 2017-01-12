@@ -1,0 +1,91 @@
+sql
+mysql -u training -p
+show databases;
+show databases;
+use loudacre;
+show tables;
+select * from accounts limit 10;
+
+sqoop
+sqoop list-databases --connect jdbc:mysql://localhost --
+sqoop help
+sqoop list-databases --connect
+sqoop list-databases --connect jdbc:mysql://localhost
+sqoop list-databases --connect jdbc:mysql://localhost --
+
+sqoop list-databases \ 
+--connect jdbc:mysql://localhost/loudacre \
+--username training \
+--password training
+
+#running sql in sqoop
+sqoop eval --connect jdbc:mysql://localhost/loudacre --username training --password training --query "select * from accounts limit 10";
+
+#making a directory
+hdfs dfs -mkdir -p /kubrick/familytree
+
+sqoop import --connect jdbc:mysql://localhost/loudacre --username training --password training --table accounts --target-dir /kubrick/accounts
+
+hdfs dfs -ls /kubrick/accounts
+
+hdfs dfs -cat /kubrick/accounts/part-m-00000 |head -n20
+
+sqoop import --connect jdbc:mysql://localhost/loudacre --username training --password training --table accounts --columns "acct_num, first_name, last_name, city" --where "city in ('Ely','Elko')" --target-dir /kubrick/accounts --delete-target-dir
+
+sqoop import --connect jdbc:mysql://localhost/loudacre --username training --password training --query "select acct_num, last_name, state from accounts WHERE \$CONDITIONS and state = 'AZ'" --split-by "acct_num" --target-dir /kubrick/accounts --delete-target-dir
+
+sqoop import --connect jdbc:mysql://localhost/loudacre --username training --password training --query "select acct_num, last_name, state from accounts WHERE \$CONDITIONS and state = 'AZ'" -m1 --target-dir /kubrick/accounts --delete-target-dir
+
+sqoop import --connect jdbc:mysql://localhost/loudacre --username training --password training --table accounts --fields-terminated-by '\t' --target-dir /kubrick/accounts --delete-target-dir --hive-import
+
+create table accounts ( acct_num int not null, acct_create_dt varchar (100), acct_close_dt varchar(100), first_name varchar(100), last_name varchar(100), address varchar(100), city varchar(100), state char(2), zipcode varchar (100), phone_number varchar(100), created varchar(100), modified varchar(100));
+
+#Impala
+show create table accounts
+
+
+#exporting to sql from hive
+sqoop export --connect jdbc:mysql://localhost/kubrick --username training --password training --export-dir /user/hive/warehouse/accounts  --table accounts --fields-terminated-by '\t'
+
+#create table and populate 
+create table tablename (id int, course varchar(100), duration int)
+row format delimited fields terminated by "," lines terminated by "\n" location "/kubrick/data/2016/training"
+
+#putting file into hive 
+hdfs dfs -put training /kubrick/data/2016/training
+
+#making a directory in hive that doesnt already exist 
+hdfs dfs -mkdir -p /kubrick/data/2016/training
+
+#create external table to help not delete whole directory 
+create external table tablename2 (id int, course varchar(100), duration int)
+row format delimited fields terminated by "," lines terminated by "\n" location "/kubrick/data/2016/training"
+
+#hive user
+cd /usr/lib/hive/conf
+ls -l
+gedit hive-site.xml
+mysql -u hiveuser -p
+
+#opening a partition functionality in hive 
+set hive.exec.dynamic.partition=true;
+set hive.exec.dynamic.partition.mode=nonstrict;
+
+#creating a table with partitions
+create external table Customer (CustomerID int, FirstName string, LastName string) Partitioned by (city string) row format delimited fields terminated by ',' location '/kubrick/customer_by_city'
+
+#loading an inpath data into hive 
+LOAD DATA INPATH '/kubrick/cstmviewddatasql.csv' INTO TABLE customer Partition (city = 'london')
+
+NB: Load Data Inpath - Does not support dynamic partitioning
+
+#ctas 
+create table londoncustomers stored as parquet as select customerid, firstname, lastname FROM customer
+
+#interesting cloudera paperdoc
+cloudera.com/documentation/enterprises/5-7-x/topics/impala_create_table.html
+
+#creating a table like another table using parquet 
+create external table accounts2 like friday_accounts_avro stored as parquet location '/kubrick/accounts_parquet'
+
+
